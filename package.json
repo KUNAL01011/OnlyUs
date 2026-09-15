@@ -1,0 +1,51 @@
+{
+  "name": "template",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=apps/backend\" \"npm run dev --workspace=apps/frontend\"",
+    "dev:backend": "npm run dev --workspace=apps/backend",
+    "dev:frontend": "npm run dev --workspace=apps/frontend",
+    "build": "npm run build --workspace=apps/backend && npm run build --workspace=apps/frontend",
+    "build:backend": "npm run build --workspace=apps/backend",
+    "build:frontend": "npm run build --workspace=apps/frontend",
+    "users": "npm run users --workspace=apps/backend",
+    "install:all": "npm install",
+    "lint": "npm run lint --workspaces --if-present",
+    "prepare": "husky"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@commitlint/config-conventional": "^19.6.0",
+    "@types/node": "^22.10.5",
+    "commitlint": "^19.6.1",
+    "concurrently": "^9.1.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.4.2",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "@types/express": "^4.17.21",
+    "@types/express-serve-static-core": "^4.19.6"
+  },
+  "lint-staged": {
+    "apps/backend/**/*.{js,ts}": [
+      "eslint --config apps/backend/eslint.config.js --fix",
+      "prettier --write"
+    ],
+    "apps/frontend/**/*.{js,jsx,ts,tsx}": [
+      "eslint --config apps/frontend/eslint.config.mjs --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,css,scss}": [
+      "prettier --write"
+    ]
+  }
+}

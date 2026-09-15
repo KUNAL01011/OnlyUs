@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 240 20% 99%;
+  --foreground: 240 10% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 12%;
+  --muted: 240 12% 94%;
+  --muted-foreground: 240 6% 45%;
+  --primary: 268 60% 58%;
+  --primary-foreground: 0 0% 100%;
+  --border: 240 12% 90%;
+  --input: 240 20% 98%;
+  --ring: 268 60% 58%;
+  --radius: 0.9rem;
+}
+
+.dark {
+  --background: 250 24% 7%;
+  --foreground: 240 15% 96%;
+  --card: 250 22% 11%;
+  --card-foreground: 240 15% 96%;
+  --muted: 250 16% 18%;
+  --muted-foreground: 240 8% 62%;
+  --primary: 268 70% 66%;
+  --primary-foreground: 0 0% 100%;
+  --border: 250 16% 20%;
+  --input: 250 20% 14%;
+  --ring: 268 70% 66%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* Aurora backdrop used on the entry screen. */
+.aurora {
+  background:
+    radial-gradient(40% 55% at 20% 20%, hsl(268 70% 60% / 0.28), transparent 60%),
+    radial-gradient(45% 55% at 82% 30%, hsl(320 70% 62% / 0.22), transparent 60%),
+    radial-gradient(50% 60% at 50% 90%, hsl(210 80% 60% / 0.2), transparent 60%);
+  filter: blur(6px);
+}
+
+/* Thin scrollbar for the chat area. */
+.thin-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 999px;
+}
+.thin-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}

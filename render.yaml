@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: only-us-backend
+    runtime: node
+    rootDir: apps/backend
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: ROOM_ID
+        value: only-us
+      - key: KEEPALIVE_ENABLED
+        value: 'true'
+      - key: KEEPALIVE_MINUTES
+        value: '10'
+      # PUBLIC_URL must equal this service's public URL once created.
+      - key: PUBLIC_URL
+        sync: false
+      - key: CLIENT_ORIGIN
+        sync: false # e.g. https://only-us.vercel.app
+      - key: MONGODB_URI
+        sync: false
+      - key: ACCESS_CODE
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SESSION_TTL
+        value: 7d
