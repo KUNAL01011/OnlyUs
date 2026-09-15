@@ -33,14 +33,14 @@ export function EmojiPicker({
   return (
     <div
       ref={ref}
-      className="absolute bottom-14 right-0 z-20 w-72 rounded-xl border border-border bg-card p-3 shadow-2xl animate-fade-in"
+      className="absolute bottom-14 right-0 z-20 w-[min(18rem,calc(100vw-1.5rem))] rounded-xl border border-border bg-card p-3 shadow-2xl animate-fade-in"
     >
       <div className="grid max-h-56 grid-cols-8 gap-1 overflow-y-auto thin-scroll">
         {EMOJIS.map((emoji, i) => (
           <button
             key={i}
             onClick={() => onPick(emoji)}
-            className="flex h-8 w-8 items-center justify-center rounded-md text-xl transition-transform hover:scale-125 hover:bg-muted"
+            className="flex aspect-square w-full items-center justify-center rounded-md text-xl transition-transform hover:scale-110 hover:bg-muted"
           >
             {emoji}
           </button>

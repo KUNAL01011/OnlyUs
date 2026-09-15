@@ -67,7 +67,7 @@ export function GifPicker({
   return (
     <div
       ref={ref}
-      className="absolute bottom-14 right-0 z-20 w-80 rounded-xl border border-border bg-card p-3 shadow-2xl animate-fade-in"
+      className="absolute bottom-14 right-0 z-20 w-[min(20rem,calc(100vw-1.5rem))] rounded-xl border border-border bg-card p-3 shadow-2xl animate-fade-in"
     >
       <div className="relative mb-2">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

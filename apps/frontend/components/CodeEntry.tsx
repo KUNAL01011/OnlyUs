@@ -1,53 +1,25 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
 
-const CODE_LENGTH = 4;
+const MAX_CODE_LENGTH = 32;
 
 export function CodeEntry() {
   const router = useRouter();
-  const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(''));
+  const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const inputs = useRef<(HTMLInputElement | null)[]>([]);
-
-  const code = digits.join('');
-
-  function setDigit(i: number, val: string) {
-    const clean = val.replace(/\D/g, '').slice(-1);
-    setDigits((prev) => {
-      const next = [...prev];
-      next[i] = clean;
-      return next;
-    });
-    if (clean && i < CODE_LENGTH - 1) inputs.current[i + 1]?.focus();
-  }
-
-  function onKeyDown(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Backspace' && !digits[i] && i > 0) {
-      inputs.current[i - 1]?.focus();
-    }
-  }
-
-  function onPaste(e: React.ClipboardEvent) {
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, CODE_LENGTH);
-    if (!pasted) return;
-    e.preventDefault();
-    const next = Array(CODE_LENGTH).fill('');
-    pasted.split('').forEach((d, i) => (next[i] = d));
-    setDigits(next);
-    inputs.current[Math.min(pasted.length, CODE_LENGTH - 1)]?.focus();
-  }
 
   async function enter() {
-    if (code.length < CODE_LENGTH) {
-      setError('Please enter your full code.');
+    const trimmed = code.trim();
+    if (!trimmed) {
+      setError('Please enter your code.');
       return;
     }
     if (!name.trim()) {
@@ -57,12 +29,10 @@ export function CodeEntry() {
     setLoading(true);
     setError(null);
     try {
-      await api.enter(code, name.trim());
+      await api.enter(trimmed, name.trim());
       router.push('/space');
     } catch (err) {
       setError((err as Error).message);
-      setDigits(Array(CODE_LENGTH).fill(''));
-      inputs.current[0]?.focus();
     } finally {
       setLoading(false);
     }
@@ -89,22 +59,18 @@ export function CodeEntry() {
           <label className="mb-2 block text-center text-sm text-muted-foreground">
             Enter your unique code
           </label>
-          <div className="mb-5 flex justify-center gap-3" onPaste={onPaste}>
-            {digits.map((d, i) => (
-              <input
-                key={i}
-                ref={(el) => {
-                  inputs.current[i] = el;
-                }}
-                value={d}
-                inputMode="numeric"
-                maxLength={1}
-                onChange={(e) => setDigit(i, e.target.value)}
-                onKeyDown={(e) => onKeyDown(i, e)}
-                className="h-14 w-12 rounded-xl border border-border bg-input text-center text-2xl font-semibold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-ring"
-              />
-            ))}
-          </div>
+          <Input
+            autoFocus
+            value={code}
+            maxLength={MAX_CODE_LENGTH}
+            spellCheck={false}
+            autoComplete="off"
+            autoCapitalize="none"
+            placeholder="e.g. abc3"
+            onChange={(e) => setCode(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && enter()}
+            className="mb-5 h-14 text-center text-2xl font-semibold tracking-[0.35em] placeholder:tracking-normal placeholder:text-base placeholder:font-normal"
+          />
 
           <Input
             placeholder="Your name"
@@ -123,7 +89,7 @@ export function CodeEntry() {
             className="w-full"
             size="lg"
             onClick={enter}
-            disabled={loading || !name.trim() || code.length < CODE_LENGTH}
+            disabled={loading || !name.trim() || !code.trim()}
           >
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Enter Only Us'}
           </Button>

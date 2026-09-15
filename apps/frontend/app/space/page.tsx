@@ -109,45 +109,46 @@ export default function SpacePage() {
   const myName = myProfile?.name || session.name;
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-[100dvh] flex-col overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between border-b border-border bg-card/70 px-4 py-3 backdrop-blur">
-        <div className="flex items-center gap-3">
-          <span className="text-lg font-bold">
+      <header className="flex items-center justify-between gap-2 border-b border-border bg-card/70 px-3 py-2.5 backdrop-blur sm:px-4 sm:py-3">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <span className="shrink-0 text-base font-bold sm:text-lg">
             Only <span className="text-primary">Us</span>
           </span>
           <PresenceDot
             online={connected}
             label={connected ? 'Connected' : 'Reconnecting…'}
-            className="ml-1 hidden sm:flex"
+            className="hidden sm:flex"
           />
         </div>
 
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
           {/* Peer */}
-          <div className="flex items-center gap-2">
-            <Avatar name={peerName} avatar={peerProfile?.avatar} size={32} />
-            <div className="hidden leading-tight sm:block">
-              <p className="text-sm font-medium">{peerName}</p>
+          <div className="flex min-w-0 items-center gap-2">
+            <Avatar name={peerName} avatar={peerProfile?.avatar} size={32} className="shrink-0" />
+            <div className="hidden max-w-[9rem] leading-tight md:block">
+              <p className="truncate text-sm font-medium">{peerName}</p>
               <PresenceDot online={peerOnline} label={peerOnline ? 'online' : 'offline'} className="text-xs" />
             </div>
           </div>
 
-          <div className="mx-1 h-6 w-px bg-border" />
+          <div className="mx-0.5 h-6 w-px shrink-0 bg-border sm:mx-1" />
 
           {/* Me */}
           <button
             onClick={() => setShowProfile(true)}
-            className="flex items-center gap-2 rounded-lg p-1 pr-2 transition-colors hover:bg-muted"
+            className="flex shrink-0 items-center gap-1.5 rounded-lg p-1 transition-colors hover:bg-muted sm:pr-2"
             title="Edit your profile"
           >
-            <Avatar name={myName} avatar={myProfile?.avatar} size={32} />
-            <Settings className="h-4 w-4 text-muted-foreground" />
+            <Avatar name={myName} avatar={myProfile?.avatar} size={32} className="shrink-0" />
+            <Settings className="hidden h-4 w-4 text-muted-foreground sm:block" />
           </button>
 
           <button
             onClick={leave}
-            className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex shrink-0 items-center gap-1.5 rounded-lg p-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:px-2.5"
+            title="Leave"
           >
             <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Leave</span>
           </button>
@@ -155,7 +156,7 @@ export default function SpacePage() {
       </header>
 
       {/* Main — split on desktop, tabbed on mobile */}
-      <main className="grid flex-1 overflow-hidden lg:grid-cols-[minmax(0,1fr)_420px]">
+      <main className="min-h-0 flex-1 overflow-hidden lg:grid lg:grid-cols-[minmax(0,1fr)_420px]">
         <section
           className={cn(
             'h-full min-h-0 border-border lg:block lg:border-r',
