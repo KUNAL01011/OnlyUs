@@ -14,6 +14,7 @@
     "build:backend": "npm run build --workspace=apps/backend",
     "build:frontend": "npm run build --workspace=apps/frontend",
     "users": "npm run users --workspace=apps/backend",
+    "reset": "npm run reset --workspace=apps/backend",
     "install:all": "npm install",
     "lint": "npm run lint --workspaces --if-present",
     "prepare": "husky"

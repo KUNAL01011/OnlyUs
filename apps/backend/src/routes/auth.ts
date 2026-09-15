@@ -16,10 +16,16 @@ const router = Router();
  */
 router.post('/enter', async (req, res) => {
   const code = String(req.body?.code ?? '').trim();
-  const name = String(req.body?.name ?? '').trim() || 'Friend';
+  const name = String(req.body?.name ?? '').trim();
 
   if (!code) {
     return res.status(400).json({ error: 'A code is required.' });
+  }
+  if (!name) {
+    return res.status(400).json({ error: 'Please enter your name.' });
+  }
+  if (name.length > 40) {
+    return res.status(400).json({ error: 'Name must be 40 characters or fewer.' });
   }
   if (code !== env.accessCode) {
     return res.status(401).json({ error: 'That code does not open Only Us.' });

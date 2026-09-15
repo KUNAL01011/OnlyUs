@@ -50,10 +50,14 @@ export function CodeEntry() {
       setError('Please enter your full code.');
       return;
     }
+    if (!name.trim()) {
+      setError('Please enter your name so your friend knows it’s you.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      await api.enter(code, name.trim() || 'Friend');
+      await api.enter(code, name.trim());
       router.push('/space');
     } catch (err) {
       setError((err as Error).message);
@@ -103,8 +107,9 @@ export function CodeEntry() {
           </div>
 
           <Input
-            placeholder="Your name (optional)"
+            placeholder="Your name"
             value={name}
+            maxLength={40}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && enter()}
             className="mb-4 text-center"
@@ -114,7 +119,12 @@ export function CodeEntry() {
             <p className="mb-4 text-center text-sm text-red-400 animate-fade-in">{error}</p>
           )}
 
-          <Button className="w-full" size="lg" onClick={enter} disabled={loading}>
+          <Button
+            className="w-full"
+            size="lg"
+            onClick={enter}
+            disabled={loading || !name.trim() || code.length < CODE_LENGTH}
+          >
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Enter Only Us'}
           </Button>
         </div>

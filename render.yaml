@@ -4,7 +4,9 @@ services:
     runtime: node
     rootDir: apps/backend
     plan: free
-    buildCommand: npm install && npm run build
+    # --include=dev is required: TypeScript + @types are devDependencies and the
+    # build needs them, but NODE_ENV=production would otherwise skip them.
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /health
     envVars:
