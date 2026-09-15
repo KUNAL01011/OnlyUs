@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import type { Socket } from 'socket.io-client';
+import { useEffect, useRef } from 'react';
 import {
   Video,
   Phone,
@@ -11,69 +10,48 @@ import {
   VideoOff,
   MonitorUp,
   MonitorX,
+  Settings2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/Avatar';
-import { CallManager, type CallState, type CallMode } from '@/lib/webrtc';
+import type { UseCall } from '@/hooks/useCall';
 import { cn } from '@/lib/utils';
 
-export function CallPanel({
-  socket,
-  peerName,
-  peerAvatar,
-  peerOnline,
-}: {
-  socket: Socket;
+interface Props {
+  call: UseCall;
   peerName: string;
   peerAvatar?: string;
   peerOnline: boolean;
-}) {
-  const managerRef = useRef<CallManager | null>(null);
+  speakerId: string;
+  onOpenDevices: () => void;
+}
+
+export function CallPanel({ call, peerName, peerAvatar, peerOnline, speakerId, onOpenDevices }: Props) {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
-  const [callState, setCallState] = useState<CallState>('idle');
-  const [incomingMode, setIncomingMode] = useState<CallMode>('video');
-  const [hasRemote, setHasRemote] = useState(false);
-  const [micOn, setMicOn] = useState(true);
-  const [camOn, setCamOn] = useState(true);
-  const [sharing, setSharing] = useState(false);
-  const [peerSharing, setPeerSharing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (localVideoRef.current) localVideoRef.current.srcObject = call.localStream;
+  }, [call.localStream]);
 
   useEffect(() => {
-    const manager = new CallManager(socket, {
-      onState: setCallState,
-      onLocalStream: (stream) => {
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-        if (!stream) {
-          setMicOn(true);
-          setCamOn(true);
-          setSharing(false);
-        }
-      },
-      onRemoteStream: (stream) => {
-        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = stream;
-        setHasRemote(!!stream && stream.getTracks().length > 0);
-      },
-      onIncoming: (mode) => setIncomingMode(mode),
-      onPeerScreen: setPeerSharing,
-      onError: (msg) => {
-        setError(msg);
-        setTimeout(() => setError(null), 4000);
-      },
-    });
-    managerRef.current = manager;
-    return () => manager.destroy();
-  }, [socket]);
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = call.remoteStream;
+  }, [call.remoteStream]);
 
-  const m = () => managerRef.current!;
-  const inCall = callState === 'connected' || callState === 'connecting';
+  // Route call audio to the chosen speaker/earphones when supported.
+  useEffect(() => {
+    const v = remoteVideoRef.current as (HTMLVideoElement & { setSinkId?: (id: string) => Promise<void> }) | null;
+    if (v?.setSinkId && speakerId) v.setSinkId(speakerId).catch(() => {});
+  }, [speakerId, call.remoteStream]);
+
+  const { state, micOn, camOn, sharing, peerSharing, hasRemote, error } = call;
+  const inCall = state === 'connected' || state === 'connecting';
 
   // ─────────────────────────── Idle (start) ───────────────────────────
-  if (callState === 'idle') {
+  if (state === 'idle') {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-6 p-8 text-center">
+      <div className="relative flex h-full flex-col items-center justify-center gap-6 p-8 text-center">
+        <DeviceButton onClick={onOpenDevices} tone="muted" className="absolute right-4 top-4" />
         <div className="relative">
           <Avatar name={peerName} avatar={peerAvatar} size={96} />
           <span
@@ -91,19 +69,14 @@ export function CallPanel({
         </div>
 
         <div className="flex w-full max-w-xs flex-col gap-3">
-          <Button
-            size="lg"
-            disabled={!peerOnline}
-            onClick={() => m().startCall('video')}
-            className="w-full"
-          >
+          <Button size="lg" disabled={!peerOnline} onClick={() => call.startCall('video')} className="w-full">
             <Video className="h-5 w-5" /> Start Video Call
           </Button>
           <Button
             size="lg"
             variant="outline"
             disabled={!peerOnline}
-            onClick={() => m().startCall('audio')}
+            onClick={() => call.startCall('audio')}
             className="w-full"
           >
             <Phone className="h-5 w-5" /> Audio Call
@@ -120,8 +93,8 @@ export function CallPanel({
     );
   }
 
-  // ─────────────────────────── Incoming ringing ───────────────────────
-  if (callState === 'incoming') {
+  // ─────────────────────────── Incoming ───────────────────────────
+  if (state === 'incoming') {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-8 p-8 text-center">
         <div className="animate-pulse-soft">
@@ -129,15 +102,13 @@ export function CallPanel({
         </div>
         <div>
           <p className="text-xl font-semibold">{peerName} is calling…</p>
-          <p className="text-sm text-muted-foreground">
-            Incoming {incomingMode} call
-          </p>
+          <p className="text-sm text-muted-foreground">Incoming {call.incomingMode} call</p>
         </div>
         <div className="flex gap-4">
-          <Button variant="danger" size="lg" onClick={() => m().reject()}>
+          <Button variant="danger" size="lg" onClick={call.reject}>
             <PhoneOff className="h-5 w-5" /> Decline
           </Button>
-          <Button variant="success" size="lg" onClick={() => m().accept()}>
+          <Button variant="success" size="lg" onClick={call.accept}>
             <Phone className="h-5 w-5" /> Accept
           </Button>
         </div>
@@ -148,25 +119,21 @@ export function CallPanel({
   // ─────────────────────────── Outgoing / active ──────────────────────
   return (
     <div className="relative flex h-full flex-col bg-black/40">
-      {/* Remote (main) video */}
       <div className="relative flex-1 overflow-hidden">
         <video
           ref={remoteVideoRef}
           autoPlay
           playsInline
-          className={cn(
-            'h-full w-full object-cover',
-            hasRemote ? 'opacity-100' : 'opacity-0'
-          )}
+          className={cn('h-full w-full object-cover', hasRemote ? 'opacity-100' : 'opacity-0')}
         />
 
         {!hasRemote && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center">
             <div className="flex h-24 w-24 animate-pulse-soft items-center justify-center rounded-full bg-primary/20 text-4xl">
-              {callState === 'outgoing' ? '📲' : '⏳'}
+              {state === 'outgoing' ? '📲' : '⏳'}
             </div>
             <p className="text-lg font-medium">
-              {callState === 'outgoing' ? `Calling ${peerName}…` : 'Connecting…'}
+              {state === 'outgoing' ? `Calling ${peerName}…` : 'Connecting…'}
             </p>
           </div>
         )}
@@ -177,7 +144,7 @@ export function CallPanel({
           </span>
         )}
 
-        {/* Local self-view (picture-in-picture) */}
+        {/* Local self-view */}
         <div className="absolute bottom-4 right-4 h-32 w-24 overflow-hidden rounded-xl border-2 border-white/20 bg-black shadow-xl sm:h-40 sm:w-32">
           <video
             ref={localVideoRef}
@@ -187,9 +154,7 @@ export function CallPanel({
             className={cn('h-full w-full object-cover', camOn || sharing ? '' : 'opacity-0')}
           />
           {!camOn && !sharing && (
-            <div className="absolute inset-0 flex items-center justify-center text-2xl">
-              🙈
-            </div>
+            <div className="absolute inset-0 flex items-center justify-center text-2xl">🙈</div>
           )}
           <span className="absolute bottom-1 left-1 rounded bg-black/50 px-1 text-[9px] text-white">
             You
@@ -204,17 +169,17 @@ export function CallPanel({
       )}
 
       {/* Controls */}
-      <div className="flex items-center justify-center gap-3 border-t border-white/10 bg-black/50 p-4">
+      <div className="flex items-center justify-center gap-2 border-t border-white/10 bg-black/50 p-4 sm:gap-3">
         <ControlButton
           active={micOn}
-          onClick={() => setMicOn(m().toggleMic())}
+          onClick={call.toggleMic}
           on={<Mic className="h-5 w-5" />}
           off={<MicOff className="h-5 w-5" />}
           label="Mic"
         />
         <ControlButton
           active={camOn}
-          onClick={() => setCamOn(m().toggleCam())}
+          onClick={call.toggleCam}
           on={<Video className="h-5 w-5" />}
           off={<VideoOff className="h-5 w-5" />}
           label="Camera"
@@ -222,30 +187,49 @@ export function CallPanel({
         <ControlButton
           active={!sharing}
           disabled={!inCall}
-          onClick={async () => {
-            if (sharing) {
-              await m().stopScreenShare();
-              setSharing(false);
-            } else {
-              const ok = await m().startScreenShare();
-              setSharing(ok);
-            }
-          }}
+          onClick={call.toggleScreen}
           on={<MonitorUp className="h-5 w-5" />}
           off={<MonitorX className="h-5 w-5" />}
           label="Share"
         />
+        <DeviceButton onClick={onOpenDevices} />
         <Button
           variant="danger"
           size="icon"
           className="h-14 w-14 rounded-full"
-          onClick={() => m().hangup()}
+          onClick={call.hangup}
           title="End call"
         >
           <PhoneOff className="h-6 w-6" />
         </Button>
       </div>
     </div>
+  );
+}
+
+function DeviceButton({
+  onClick,
+  className,
+  tone = 'light',
+}: {
+  onClick: () => void;
+  className?: string;
+  tone?: 'light' | 'muted';
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title="Devices"
+      className={cn(
+        'flex items-center justify-center rounded-full transition-colors',
+        tone === 'muted'
+          ? 'h-10 w-10 bg-muted text-muted-foreground hover:bg-muted/70'
+          : 'h-14 w-14 bg-white/15 text-white hover:bg-white/25',
+        className
+      )}
+    >
+      <Settings2 className="h-5 w-5" />
+    </button>
   );
 }
 

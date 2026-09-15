@@ -29,6 +29,10 @@ export class CallManager {
   private _state: CallState = 'idle';
   private sharing = false;
 
+  // Preferred input devices (deviceId from enumerateDevices). Empty = system default.
+  private micId = '';
+  private cameraId = '';
+
   constructor(
     private socket: Socket,
     private events: CallManagerEvents = {}
@@ -118,16 +122,98 @@ export class CallManager {
   }
 
   // ───────────────────────────── Media setup ───────────────────────────
+  /** Remember preferred devices. Switches live if a call is already running. */
+  async setDevices(opts: { micId?: string; cameraId?: string }) {
+    if (opts.micId !== undefined && opts.micId !== this.micId) {
+      this.micId = opts.micId;
+      if (this.localStream?.getAudioTracks().length) await this.switchAudio();
+    }
+    if (opts.cameraId !== undefined && opts.cameraId !== this.cameraId) {
+      this.cameraId = opts.cameraId;
+      if (!this.sharing && this.localStream?.getVideoTracks().length) await this.switchVideo();
+    }
+  }
+
+  private audioConstraint(): MediaTrackConstraints | boolean {
+    return this.micId
+      ? { deviceId: { exact: this.micId }, echoCancellation: true, noiseSuppression: true }
+      : { echoCancellation: true, noiseSuppression: true };
+  }
+
+  private videoConstraint(): MediaTrackConstraints {
+    const base: MediaTrackConstraints = { width: { ideal: 1280 }, height: { ideal: 720 } };
+    if (this.cameraId) base.deviceId = { exact: this.cameraId };
+    return base;
+  }
+
   private async getMedia(mode: CallMode): Promise<MediaStream> {
     const constraints: MediaStreamConstraints = {
-      audio: true,
-      video: mode === 'video' ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false,
+      audio: this.audioConstraint(),
+      video: mode === 'video' ? this.videoConstraint() : false,
     };
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (err) {
+      // A saved device may have been unplugged — retry with system defaults.
+      if ((err as DOMException)?.name === 'OverconstrainedError') {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: mode === 'video',
+        });
+      } else {
+        throw err;
+      }
+    }
     this.localStream = stream;
     this.cameraTrack = (stream.getVideoTracks()[0] as MediaVideoTrack) ?? null;
     this.events.onLocalStream?.(stream);
     return stream;
+  }
+
+  /** Swap the live microphone track to the currently preferred device. */
+  private async switchAudio() {
+    if (!this.localStream) return;
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ audio: this.audioConstraint() });
+      const track = s.getAudioTracks()[0];
+      const old = this.localStream.getAudioTracks()[0];
+      const wasMuted = old ? !old.enabled : false;
+      track.enabled = !wasMuted;
+      if (old) {
+        old.stop();
+        this.localStream.removeTrack(old);
+      }
+      this.localStream.addTrack(track);
+      const sender = this.pc?.getSenders().find((x) => x.track?.kind === 'audio');
+      if (sender) await sender.replaceTrack(track);
+      this.events.onLocalStream?.(this.localStream);
+    } catch {
+      this.events.onError?.('Could not switch microphone.');
+    }
+  }
+
+  /** Swap the live camera track to the currently preferred device. */
+  private async switchVideo() {
+    if (!this.localStream) return;
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: this.videoConstraint() });
+      const track = s.getVideoTracks()[0] as MediaVideoTrack;
+      const old = this.localStream.getVideoTracks()[0];
+      const wasOff = old ? !old.enabled : false;
+      track.enabled = !wasOff;
+      if (old) {
+        old.stop();
+        this.localStream.removeTrack(old);
+      }
+      this.localStream.addTrack(track);
+      this.cameraTrack = track;
+      const sender = this.pc?.getSenders().find((x) => x.track?.kind === 'video');
+      if (sender) await sender.replaceTrack(track);
+      this.events.onLocalStream?.(this.localStream);
+    } catch {
+      this.events.onError?.('Could not switch camera.');
+    }
   }
 
   private createPeer() {

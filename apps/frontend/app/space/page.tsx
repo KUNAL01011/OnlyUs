@@ -8,9 +8,13 @@ import { getSocket, disconnectSocket } from '@/lib/socket';
 import { api, type Session, type Profile } from '@/lib/api';
 import { Chat } from '@/components/Chat';
 import { CallPanel } from '@/components/CallPanel';
+import { FloatingCall } from '@/components/FloatingCall';
 import { PresenceDot } from '@/components/PresenceDot';
 import { Avatar } from '@/components/Avatar';
 import { ProfileDialog } from '@/components/ProfileDialog';
+import { DeviceSettings } from '@/components/DeviceSettings';
+import { useCall } from '@/hooks/useCall';
+import { useMediaDevices } from '@/hooks/useMediaDevices';
 import { cn } from '@/lib/utils';
 
 type Tab = 'chat' | 'call';
@@ -28,8 +32,18 @@ export default function SpacePage() {
   const [myProfile, setMyProfile] = useState<Profile | null>(null);
   const [peerProfile, setPeerProfile] = useState<Profile | null>(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [showDevices, setShowDevices] = useState(false);
+
+  const call = useCall(socket);
+  const devices = useMediaDevices();
 
   const peerName = peerProfile?.name || 'Friend';
+
+  // Push the user's chosen mic/camera into the call (switches live if in a call).
+  useEffect(() => {
+    call.setDevices({ micId: devices.micId, cameraId: devices.cameraId });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [devices.micId, devices.cameraId]);
 
   useEffect(() => {
     let mounted = true;
@@ -164,10 +178,12 @@ export default function SpacePage() {
           )}
         >
           <CallPanel
-            socket={socket}
+            call={call}
             peerName={peerName}
             peerAvatar={peerProfile?.avatar}
             peerOnline={peerOnline}
+            speakerId={devices.speakerId}
+            onOpenDevices={() => setShowDevices(true)}
           />
         </section>
 
@@ -189,8 +205,19 @@ export default function SpacePage() {
           onClick={() => setTab('call')}
           icon={<Phone className="h-5 w-5" />}
           label="Call"
+          badge={call.isActive}
         />
       </nav>
+
+      {/* Mobile: floating call window so you can watch + chat at once */}
+      {call.isActive && tab === 'chat' && (
+        <FloatingCall
+          call={call}
+          peerName={peerName}
+          peerAvatar={peerProfile?.avatar}
+          onExpand={() => setTab('call')}
+        />
+      )}
 
       {showProfile && myProfile && (
         <ProfileDialog
@@ -199,6 +226,8 @@ export default function SpacePage() {
           onSaved={setMyProfile}
         />
       )}
+
+      {showDevices && <DeviceSettings devices={devices} onClose={() => setShowDevices(false)} />}
     </div>
   );
 }
@@ -208,21 +237,28 @@ function TabButton({
   onClick,
   icon,
   label,
+  badge,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
+  badge?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        'flex flex-1 flex-col items-center gap-1 py-3 text-xs transition-colors',
+        'relative flex flex-1 flex-col items-center gap-1 py-3 text-xs transition-colors',
         active ? 'text-primary' : 'text-muted-foreground'
       )}
     >
-      {icon}
+      <span className="relative">
+        {icon}
+        {badge && (
+          <span className="absolute -right-1.5 -top-0.5 h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400 ring-2 ring-card" />
+        )}
+      </span>
       {label}
     </button>
   );
